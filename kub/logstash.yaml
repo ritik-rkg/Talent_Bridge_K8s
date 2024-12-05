@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logstash
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: logstash
+  template:
+    metadata:
+      labels:
+        app: logstash
+    spec:
+      containers:
+      - name: logstash
+        image: docker.elastic.co/logstash/logstash:7.17.10
+        ports:
+        - containerPort: 5044
+        env:
+        - name: xpack.monitoring.enabled
+          value: "false" # Ensure this is correctly formatted as a string
+        volumeMounts:
+        - name: app-log
+          mountPath: /home/jenkins/TalentBridge_K8s
+          subPath: app.log
+        - name: logstash-conf
+          mountPath: /home/jenkins/TalentBridge_K8s
+          subPath: logstash.conf
+      volumes:
+      - name: app-log
+        hostPath:
+          path: /var/lib/jenkins/workspace/TalentBridge_K8s
+          type: FileOrCreate  # Allow for file creation if it doesn't exist
+      - name: logstash-conf
+        hostPath:
+          path: /var/lib/jenkins/workspace/TalentBridge_K8s
+          type: FileOrCreate  # Allow for file creation if it doesn't exist
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: logstash
+spec:
+  selector:
+    app: logstash
+  ports:
+  - protocol: TCP
+    port: 5044
+    targetPort: 5044
+  type: ClusterIP
