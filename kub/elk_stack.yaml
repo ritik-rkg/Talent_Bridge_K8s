@@ -27,14 +27,13 @@ data:
   }
   output {
       elasticsearch {
-          hosts => ["http://elasticsearch:9200"]  # Elasticsearch host URL
+          hosts => ["elasticsearch:9200"]  # Elasticsearch host URL
           index => "logstash4"      # Daily index
       }
       stdout { 
           codec => rubydebug  # Prints processed logs for debugging
       }
   }
-
 ---
 # Elasticsearch Deployment
 apiVersion: apps/v1
