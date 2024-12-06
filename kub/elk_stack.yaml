@@ -20,20 +20,41 @@ data:
   logstash.conf: |
     input {
       file {
-        path => "/app/app.log"
+        path => "/app/logs/app.log"
         start_position => "beginning"
         sincedb_path => "/dev/null"
+        
+        # Add multiline support if your logs are multiline
+        codec => multiline {
+          pattern => "^%{TIMESTAMP_ISO8601}"
+          negate => true
+          what => "previous"
+        }
+      }
+    }
+    
+    filter {
+      # Optional: Add parsing logic if needed
+      if [message] =~ /\S/ {
+        mutate {
+          strip => "message"
+        }
       }
     }
     
     output {
       elasticsearch {
-        hosts => ["elasticsearch:9200"]
-        index => "logstash4"
+        hosts => ["http://elasticsearch:9200"]
+        index => "application-logs-%{+YYYY.MM.dd}"
+        
+        # Add more verbose logging and error handling
+        failure_type_logging_whitelist => ["connection_exception", "auth_exception"]
       }
+      
+      # Debug output
       stdout { 
-            codec => rubydebug  # Prints processed logs for debugging
-        }
+        codec => rubydebug
+      }
     }
 
 ---
@@ -64,6 +85,8 @@ spec:
           value: "single-node"
         - name: ES_JAVA_OPTS
           value: "-Xms512m -Xmx512m"
+        - name: xpack.security.enabled
+          value: "false"
         volumeMounts:
         - name: elasticsearch-data
           mountPath: /usr/share/elasticsearch/data
@@ -78,12 +101,15 @@ apiVersion: v1
 kind: Service
 metadata:
   name: elasticsearch
+  labels:
+    app: elasticsearch
 spec:
   selector:
     app: elasticsearch
   ports:
   - port: 9200
     targetPort: 9200
+  type: ClusterIP
 
 ---
 # Logstash Deployment
@@ -113,14 +139,23 @@ spec:
           value: "false"
         volumeMounts:
         - name: log-volume
-          mountPath: /app/app.log
+          mountPath: /app/logs
+          readOnly: true
         - name: logstash-pipeline
           mountPath: /usr/share/logstash/pipeline/logstash.conf
           subPath: logstash.conf
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 1
+            memory: 1Gi
       volumes:
       - name: log-volume
         hostPath:
-          path: /home/ritik/Downloads/atalent_bridge/talentbridge/app.log
+          path: /path/to/your/logs
+          type: Directory
       - name: logstash-pipeline
         configMap:
           name: logstash-config
@@ -131,12 +166,15 @@ apiVersion: v1
 kind: Service
 metadata:
   name: logstash
+  labels:
+    app: logstash
 spec:
   selector:
     app: logstash
   ports:
   - port: 5044
     targetPort: 5044
+  type: ClusterIP
 
 ---
 # Kibana Deployment
@@ -164,6 +202,8 @@ spec:
         env:
         - name: ELASTICSEARCH_HOSTS
           value: "http://elasticsearch:9200"
+        - name: XPACK_SECURITY_ENABLED
+          value: "false"
 
 ---
 # Kibana Service
@@ -171,6 +211,8 @@ apiVersion: v1
 kind: Service
 metadata:
   name: kibana
+  labels:
+    app: kibana
 spec:
   type: NodePort
   selector:
