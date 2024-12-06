@@ -22,10 +22,10 @@ spec:
           value: "false" # Ensure this is correctly formatted as a string
         volumeMounts:
         - name: app-log
-          mountPath: /home/ritik/Downloads/Talent_Bridge_K8s-master/app.log
+          mountPath: /app/app.log
           subPath: app.log
         - name: logstash-conf
-          mountPath: /home/ritik/Downloads/Talent_Bridge_K8s-master/logstash.conf
+          mountPath: /usr/share/logstash/pipeline/logstash.conf
           subPath: logstash.conf
       volumes:
       - name: app-log
